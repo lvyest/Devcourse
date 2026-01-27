@@ -110,7 +110,7 @@ app.put('/youtubers/:id', function(req, res){
 
     var youtuber= db.get(id)
     var oldTitle = youtuber.channelTitle
-    if(youtuber){
+    if(youtuber == undefined){
         res.json({
             message : `요청하신 ${id}번은 없는 유튜버입니다.`
         })
