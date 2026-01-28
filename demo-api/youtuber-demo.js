@@ -28,7 +28,7 @@ let youtuber3 = {
 let db = new Map()
 var id = 1
 
-db.set(id, youtuber1) // 키로 벨류를 찾을 수 있는 한 쌍을 저장 
+db.set(id++, youtuber1) // 키로 벨류를 찾을 수 있는 한 쌍을 저장 
 db.set(id++, youtuber2)
 db.set(id++, youtuber3)
 
@@ -53,18 +53,18 @@ app.get('/youtubers/:id', function(req, res){
     id = parseInt(id)
     
     const youtuber = db.get(id)
-    if(youtuber == undefined){
-        res.json({
-            message : "유튜버 정보를 찾을 수 없습니다."
+    if (!youtuber) {
+        res.status(404).json({
+            message: "유튜버 정보를 찾을 수 없습니다."
         })
-    } else {    
-        res.status(404).json(youtuber)            
+    } else {
+        res.status(200).json(youtuber)
     }
+
 })
 
 app.use(express.json()) // http 외 모듈인 '미들웨어': json 설정
 app.post('/youtubers', (req, res) => {
-    const channelTitle = req.body.channelTi
     if(req.body.channelTitle){
         //등록 : Map(db)에 저장(put) 해줘야됨
         db.set(id++, req.body)
@@ -93,7 +93,7 @@ app.delete('/youtubers/:id', function(req, res){
         const channelTitle = youtuber.channelTitle
         db.delete(id)
 
-        res.status(404).json({
+        res.status(200).json({
             message : `${channelTitle}님, 아쉽지만 우리 인연은 여기까지 인가요..`
         })  
     }
