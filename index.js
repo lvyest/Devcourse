@@ -2,4 +2,7 @@ let server = require('./server');
 let router = require('./router');
 let requestHandler = require('./requestHandler');
 
-server.start(router.route, requestHandler.handle);
+const mariadb = require('./database/connect/mariadb');
+mariadb.connect(); /*연결 완료!*/
+
+server.start(router.route, requestHandler.handle); 
