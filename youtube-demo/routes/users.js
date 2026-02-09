@@ -1,115 +1,128 @@
-const express = require('express');
-//라우터가 확인할 수 있게만 하면됨
+const express = require('express')
 const router = express.Router()
+const conn = require('../mariadb')
+const {body, param, validationResult} = require('express-validator')
 
-router.use(express.json()) //http 외 모듈 'json'
 
+router.use(express.json())
 
-let db = new Map();
-var id = 1; // 하나의 객체를 유니크하게 쿠별하기 위함. PK
+const validate = (req, res, next) =>  {
+    const err = validationResult(req)
 
-function isExist(obj) {
-    if(Object.keys(obj).length) {
-        return true
+    if(err.isEmpty()){
+        return next();
+    } else {
+        return res.status(400).json(err.array())
     }
-    else {
-        return false
-    }
-}
-
-function findByUserId(db, userId){
-    let foundUser = {};
-    db.forEach(function(user){
-        if(user.userId === userId){
-            foundUser = user;
-        }
-    });
-    return foundUser;
-}
-
-function isPwdCorrect(loginUser, password){
-    return loginUser.password === password;
 }
 
 //로그인
-router.post('/login', (req, res) => {
-    console.log(req.body) //userId, pwd
+router.post(
+    '/login', 
+    [
+        body('email').notEmpty().isEmail().withMessage('이메일 확인 필요'),
+        body('password').notEmpty().isString().withMessage('비밀번호 확인 필요'),
+        validate
+    ],
+    (req, res) => {
+        const {email, password} = req.body
 
-    //userId가 디비에 저장된 회원이지 확인
-    const {userId, password} = req.body
-    var loginUser = findByUserId(db, userId);
+        let sql = `SELECT * FROM users WHERE email = ?`
+        conn.query(sql, email,
+            function(err, result){
+                if(err){
+                    console.log(err)
+                    return res.status(400).end()
+                }
 
-    if (isExist(loginUser)){
-        //pwd 같은지 메소드 빼보자. 
-
-        if(isPwdCorrect(loginUser, password)){
-            res.status(200).json({
-                message : `${loginUser.name}님 로그인 되었습니다.`
-            })
-        } else {
-            res.status(400).json({
-                message : "비밀번호가 틀렸습니다."
-            })        
-        }
-    } else {
-            res.status(400).json({
-                message : "회원 정보가 없습니다."
-            })    
-    }
+                var loginUser = result[0]; //result 없어도 오류 안남!
+                    
+                if(loginUser && loginUser.password == password){
+                    res.status(200).json({
+                        message : `${loginUser.name}님 로그인 되었습니다.`  
+                    })
+                }
+                else {
+                    res.status(404).json({
+                        message : "이메일 또는 비밀번호가 틀렸습니다."
+                    })   
+                }
+            }
+        )
 })
 
-//회원가입
-router.post('/join', (req, res) => {
-    console.log(req.body)
+router.post(
+    '/join', 
+    [
+        body('email').notEmpty().isEmail().withMessage('이메일 확인 필요'),
+        body('name').notEmpty().isString().withMessage('이름 확인 필요'),
+        body('password').notEmpty().isString().withMessage('비밀번호 확인 필요'),
+        body('contact').notEmpty().isString().withMessage('연락처 확인 필요'),
+        validate
+    ],
+    (req, res) => {
+        const {email, name, password, contact} = req.body
+        let sql = `INSERT INTO users (email, name, password, contact) VALUES(?, ?, ?, ?)`
+        let values = [email, name, password, contact]
+        conn.query(sql,values,
+            function(err, results){
+                if(err){
+                    console.log(err)
+                    return res.status(400).end()
+                }
 
-    if(req.body == {}){
-        res.status(400).json({
-            message : `입력 값을 다시 확인해주세요.`
-        })
-    }
-    else {
-        const {userId} = req.body
-        db.set(userId, req.body)
-
-        res.status(201).json({
-            message : `${db.get(userId).name}님 환영합니다.`
-        }) 
-    }
+                res.status(201).json(results)
+            }
+        )
 })
 
+//회원 개별 조회 
 router
     .route('/users')
-    .get((req, res) => {
-        let {userId} = req.body;
+    .get(
+        [
+            body('email').notEmpty().isEmail().withMessage('이메일 확인 필요'),
+            validate
+        ]
+        ,(req, res) => {
+            let {email} = req.body;
+            
+            let sql = `SELECT * FROM users WHERE email = ?`
+            conn.query(sql, email,
+                function (err, results, fields) {
+                        if(err){
+                            console.log(err)
+                            return res.status(400).end()
+                        }
 
-        const user = db.get(userId);
-        if(user){
-            res.status(200).json({
-                userId : user.userId,
-                name : user.name
-            })
-        } else {
-            res.status(404).json({
-                message : "회원 정보가 없습나다."
-            })
-        }
-    }) // 회원 개별 조회
-    .delete((req, res) => {
-        let {userId} = req.body;
+                        res.status(200).json(results)
+                }
+            );  
+    }) 
+    .delete( //회원 탈퇴
+        [
+            body('email').notEmpty().isEmail().withMessage('이메일 확인 필요'),
+            validate
+        ]
+        ,(req, res) => {
+            let {email} = req.body;
 
-        const user = db.get(userId);
-        if(user ){
-            db.delete(id)
+            let sql = `DELETE FROM users WHERE email = ?`
+            conn.query(sql, email,
+                function (err, results, fields){
+                    if(err){
+                        console.log(err)
+                        return res.status(400).end()
+                    }
 
-            res.status(200).json({
-                message : `${user.name}님 다음에 또 뵙겠습니다.`
-            })
-        } else {
-            res.status(404).json({
-                message : "회원 정보가 없습나다."
-            })
-        }
-    })
+                    if(results.affectedRows == 0){
+                        return res.status(400).end()
+                    } else {
+                        res.status(200).json(results)
+                    }                
+                }
+            ) 
+    }) 
 
 
 module.exports = router
