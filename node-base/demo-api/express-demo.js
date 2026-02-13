@@ -1,9 +1,10 @@
 import express from 'express'
-
 const app = express()
+const dotenv = require('dotenv')
+dotenv.config()
 
 // 서버 세팅 : 포트 넘버 3000으로 셋팅 
-app.listen(3000, () => {
+app.listen(process.env.PORT, () => {
   console.log('Server is running on http://localhost:3000')
 })
 
