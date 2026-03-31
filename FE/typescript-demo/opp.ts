@@ -32,5 +32,5 @@ class Employee {
 
 let employee1 = new Employee('kim', 20, 'developer'); // new 키워드에서 생성자(constucor) 실행됨
 
-employee1._empName();
+employee1.empName = 'lee';
 employee1.printEmp();
